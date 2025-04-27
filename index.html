@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>日本語会話</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--  CSS  -->
+  <style> 
+    body {
+      font-family: sans-serif;
+      padding: 1em;
+      max-width: 600px;
+      margin: auto;
+      background-color: #f9f9f9;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 0.75em;
+      margin-top: 0.5em;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background-color: #007aff;
+      color: white;
+      border: none;
+    }
+    #res {
+      margin-top: 1em;
+      background: #fff;
+      padding: 1em;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>🗣️ SORA MAMA用日本語会話練習ミニ</h2>
+  <label>🔑Private API Key</label>
+  <input type="password" id="apiKey" placeholder="sk-or-...">
+
+  <label>💬 あなたのメッセージ</label>
+  <textarea id="msg" rows="3" placeholder="例：この文法の使い方を教えてください。"></textarea>
+  <button onclick="startListening()">🎤 話す</button>
+  <button onclick="chatAndSpeak()">送信する</button>
+
+  <div id="res"></div>
+
+  <script> // js - javascript
+    async function chatAndSpeak() {
+      const key = document.getElementById("apiKey").value.trim();
+      const msg = document.getElementById("msg").value.trim();
+      if (!key || !msg) {
+        alert("APIキーとメッセージを入力してください。");
+        return;
+      }
+    
+      document.getElementById("res").innerText = "⏳ 応答中...";
+    
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + key
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: "あなたは日本語教師です。" },
+              { role: "user", content: msg }
+            ]
+          })
+        });
+    
+        const data = await res.json();
+        const responseText = data.choices?.[0]?.message?.content || "❌ 応答なし。";
+        document.getElementById("res").innerText = responseText;
+    
+        speakText(responseText);
+      } catch (err) {
+        document.getElementById("res").innerText = "❌ エラー: " + err.message;
+      }
+    }
+
+    // update function listening
+    function startListening() {
+      const msgInput = document.getElementById("msg"); // lưu giá trị nhập tay
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;  // lưu giá trị mà nói
+      if (!SpeechRecognition) {
+        alert("このブラウザは音声認識をサポートしていません。");
+        return;
+      }
+
+      const recognition = new SpeechRecognition(); // tạo 1 cái biến mới với mỗi lần bấm nút voice
+      recognition.lang = "ja-JP"; // ngôn ngữ đầu vào là tiếng nhật 
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        msgInput.value = transcript;
+      };
+      // tóm lại đoạn 97 - 107 là bắt cái mic của vợ
+
+      recognition.onerror = (event) => {
+        alert("🎤 音声認識エラー: " + event.error);
+      };
+    }
+
+    // Đọc lại bằng giọng nói
+    function speakText(text) {
+      const synth = window.speechSynthesis;
+      if (!synth) {
+        alert("音声合成がこのブラウザでサポートされていません。");
+        return;
+      }
+
+      function speak() {
+        const voices = synth.getVoices();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "ja-JP";
+
+        const japaneseVoice = voices.find(v => v.lang === "ja-JP");
+        if (japaneseVoice) {
+          utterance.voice = japaneseVoice;
+        }
+
+        synth.speak(utterance);
+      }
+
+      if (synth.getVoices().length === 0) {
+        synth.onvoiceschanged = () => speak();
+      } else {
+        speak();
+      }
+    }
+  </script>
+</body>
+</html>
